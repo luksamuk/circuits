@@ -1,0 +1,146 @@
+#+title: Toggle LED
+#+startup: inlineimages
+
+This circuit works by fetching input from a pushbutton which toggles a LED
+on each press. Furthermore, it also exposes an HTTP/1.1 service that outputs
+the state of the LED and its temperature on any request.
+
+* Breadboard
+
+#+attr_html: :height 400
+#+attr_org: :width 400
+[[file:toggle_led_bb.png]]
+
+* Schematics
+
+#+attr_html: :height 300
+#+attr_org: :width 500
+[[file:toggle_led_schematics.png]]
+
+* PCB
+
+#+attr_html: :height 300
+#+attr_org: :width 500
+[[file:toggle_led_pcb.png]]
+
+* Code
+
+#+begin_src python
+from machine import Pin
+from time import sleep
+from picozero import pico_temp_sensor, pico_led
+
+import network
+import socket
+import select
+
+# Network setup
+ssid = 'SSID'
+password = 'PASSWORD'
+
+ap = network.WLAN(network.AP_IF)
+wlan = network.WLAN(network.STA_IF)
+
+# Disable AP, use WLAN
+ap.active(False)
+wlan.active(True)
+
+def connect():
+    ap.active(False)
+    wlan.active(True)
+    print('Scanning...')
+    wlan.scan()
+    print('Connecting...')
+    wlan.connect(ssid, password)
+    while not wlan.isconnected():
+        pico_led.toggle()
+        sleep(0.16)
+    pico_led.on()
+    print('Connection successful!')
+    ip = wlan.ifconfig()[0]
+    print(f'IP Address: {ip}')
+    return ip
+
+def open_socket(ip):
+    address = (ip, 80)
+    connection = socket.socket()
+    connection.bind(address)
+    connection.listen(1)
+    print(f'Socket listening at {address[0]}:{address[1]}.')
+    return connection
+
+def generate_report(state, temperature):
+    document = '\n{{"state": "{}","temperature": {}}}\n'.format(state, temperature)
+    return str(document)
+
+
+# Connect to wifi
+ip = connect()
+connection = open_socket(ip)
+poller = select.poll()
+poller.register(connection, select.POLLIN)
+
+
+# LED and Button setup
+pin = Pin(15, Pin.OUT)
+btn = Pin(13, Pin.IN, Pin.PULL_DOWN)
+
+def liga():
+    pin.value(1)
+    
+def desliga():
+    pin.value(0)
+
+def alterna():
+    pin.value(not pin.value())
+
+
+# Entrypoints
+
+def joined_loop():
+    state = 'OFF'
+    temperature = 0
+    pressed = False
+    pressed_old = False
+    
+    pico_led.off()
+    desliga()
+    
+    while True:
+        # Button press check
+        pressed = btn.value()
+        if not (pressed == pressed_old):
+            if pressed:
+                alterna()
+        pressed_old = pressed
+        
+        # Web request check
+        res = poller.poll(16)
+        if res:
+            client = res[0][0].accept()[0]
+            request = client.recv(1024)
+            request = str(request)
+            try:
+                request = request.split()[1]
+                #print(f'Request: {request}')
+            except IndexError:
+                pass
+            if pin.value() == 0:
+                state = 'OFF'
+            else:
+                state = 'ON'
+            temperature = pico_temp_sensor.temp
+            json = generate_report(state, temperature)
+            #print(json)
+            client.send('HTTP/1.1 200 OK\n')
+            client.send('Content-Type: application/json\n')
+            client.sendall(json)
+            client.close()
+
+# Inicializa
+try:
+    joined_loop()
+except KeyboardInterrupt:
+    print('Resetting machine')
+    machine.reset()
+#+end_src
