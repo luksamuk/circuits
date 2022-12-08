@@ -1,4 +1,5 @@
-#+title: Toggle LED (Raspberry Pi Pico W)
+
+#+title: Toggle LED Button + Web Server (Raspberry Pi Pico W)
 #+startup: inlineimages
 
 This circuit works by fetching input from a pushbutton which toggles a LED

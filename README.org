@@ -1,0 +1,40 @@
+#+title: Circuits
+
+
+Code and schematics for circuit examples, scripts and projects.
+
+Most of these were made for the Raspberry Pi Pico W.
+
+* Relation of sketches
+
+- [[./toggle_led/README.org][MicroPython: Toggle external LED with button + web service for monitoring]]
+
+* Useful information
+
+Some links and information I came across and documented here. Might be useful.
+
+** Resources
+
+- [[https://datasheets.raspberrypi.com/pico/][Raspberry Pi Pico datasheets]] (pinout, Fritzing parts, etc)
+- [[https://github.com/earlephilhower/arduino-pico/][Raspberry Pi Pico cores for Arduino IDE]] ([[https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json][JSON link]])
+- [[https://thonny.org/][Thonny download (for any MicroPython (.py, like normal Python) script)]]
+- [[https://www.arduino.cc/en/software][Arduino IDE download (for any Arduino (.ino) script)]]
+
+** Articles
+
+- [[https://dronebotworkshop.com/picow-arduino/][DroneBot Workshop: Pico W with the Arduino IDE]]
+
+** Note for Arduino IDE Users
+
+If you want to add support on Arduino IDE, get the JSON link for the boards repository above,
+go to Raspberry Pi Pico/RP2040. Go to File > Preferences, paste the link on
+"Additional Boards Manager URLs". Then you'll want to go to Boards Manager and install
+"Raspberry Pi Pico/RP2040".
+
+This should  make you  able to write  sketches and upload  them with  ease, plus
+monitor the serial port too.
+
+* License
+
+All code here is distributed under the MIT License.
+
