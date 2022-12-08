@@ -24,12 +24,13 @@ Change the SSID and Password of your network on the script as well.
   All routes should return a single JSON in the format:
 
   #+begin_src json
-{
-    "state": "ON"
-}
+{ "state": "ON" }
   #+end_src
 
 where ~state~ can be one of ~ON~ or ~OFF~.
+
+You can  import [[./Insomnia_2022-12-08.yaml][a YAML  containing these routes  for Insomnia]], just  remember to
+change the ~base_url~ variable on the base environment.
 
 * Code
 

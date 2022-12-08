@@ -1,0 +1,126 @@
+_type: export
+__export_format: 4
+__export_date: 2022-12-08T22:43:19.259Z
+__export_source: insomnia.desktop.app:v2022.6.0
+resources:
+  - _id: req_91d287d190834ebbb557e3fa0dfe8065
+    parentId: wrk_6a445f89f76b4267b6e52e447a0e3653
+    modified: 1670526666648
+    created: 1670526648046
+    url: "{{ _.base_url }}/led"
+    name: Get LED state
+    description: ""
+    method: GET
+    body: {}
+    parameters: []
+    headers: []
+    authentication: {}
+    metaSortKey: -1670526648046
+    isPrivate: false
+    settingStoreCookies: true
+    settingSendCookies: true
+    settingDisableRenderRequestBody: false
+    settingEncodeUrl: true
+    settingRebuildPath: true
+    settingFollowRedirects: global
+    _type: request
+  - _id: wrk_6a445f89f76b4267b6e52e447a0e3653
+    parentId: null
+    modified: 1670526610506
+    created: 1670526610506
+    name: RPi Pico
+    description: ""
+    scope: collection
+    _type: workspace
+  - _id: req_889545a699c94a00b6c88dd955fb5a1a
+    parentId: wrk_6a445f89f76b4267b6e52e447a0e3653
+    modified: 1670526706836
+    created: 1670526701734
+    url: "{{ _.base_url }}/led/off"
+    name: Set LED OFF
+    description: ""
+    method: POST
+    body: {}
+    parameters: []
+    headers: []
+    authentication: {}
+    metaSortKey: -1669764954370
+    isPrivate: false
+    settingStoreCookies: true
+    settingSendCookies: true
+    settingDisableRenderRequestBody: false
+    settingEncodeUrl: true
+    settingRebuildPath: true
+    settingFollowRedirects: global
+    _type: request
+  - _id: req_3423028cbcb94084b5183cab07b74c4a
+    parentId: wrk_6a445f89f76b4267b6e52e447a0e3653
+    modified: 1670526721182
+    created: 1670526718658
+    url: "{{ _.base_url }}/led/on"
+    name: Set LED ON
+    description: ""
+    method: POST
+    body: {}
+    parameters: []
+    headers: []
+    authentication: {}
+    metaSortKey: -1669384107532
+    isPrivate: false
+    settingStoreCookies: true
+    settingSendCookies: true
+    settingDisableRenderRequestBody: false
+    settingEncodeUrl: true
+    settingRebuildPath: true
+    settingFollowRedirects: global
+    _type: request
+  - _id: req_523fdcec02164a699f105522eff39576
+    parentId: wrk_6a445f89f76b4267b6e52e447a0e3653
+    modified: 1670533746436
+    created: 1670526727650
+    url: "{{ _.base_url }}/led/toggle"
+    name: Toggle LED
+    description: ""
+    method: POST
+    body: {}
+    parameters: []
+    headers: []
+    authentication: {}
+    metaSortKey: -1669193684113
+    isPrivate: false
+    settingStoreCookies: true
+    settingSendCookies: true
+    settingDisableRenderRequestBody: false
+    settingEncodeUrl: true
+    settingRebuildPath: true
+    settingFollowRedirects: global
+    _type: request
+  - _id: env_15756c367123762c97bc3bf35719f945540290f8
+    parentId: wrk_6a445f89f76b4267b6e52e447a0e3653
+    modified: 1670526643711
+    created: 1670526610515
+    name: Base Environment
+    data:
+      base_url: http://192.168.3.21
+    dataPropertyOrder:
+      "&":
+        - base_url
+    color: null
+    isPrivate: false
+    metaSortKey: 1670526610515
+    _type: environment
+  - _id: jar_15756c367123762c97bc3bf35719f945540290f8
+    parentId: wrk_6a445f89f76b4267b6e52e447a0e3653
+    modified: 1670526610518
+    created: 1670526610518
+    name: Default Jar
+    cookies: []
+    _type: cookie_jar
+  - _id: spc_1b026e226f1f456d941ec5cc8ecff55e
+    parentId: wrk_6a445f89f76b4267b6e52e447a0e3653
+    modified: 1670526610509
+    created: 1670526610509
+    fileName: RPi Pico
+    contents: ""
+    contentType: yaml
+    _type: api_spec
