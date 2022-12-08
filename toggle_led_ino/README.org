@@ -1,0 +1,153 @@
+#+title: Toggle LED Web Server (Raspberry Pi Pico W)
+
+This app connects to a given WiFi network and serves a web service on port 80,
+which can be used to change or recover the state of the built-in LED.
+
+No external connections are required, only the Raspberry Pi Pico W should
+suffice.
+
+Use this script on the Arduino IDE.
+
+* Requirements
+
+Make sure you installed the RPi Pico board support from this repository README.
+
+Change the SSID and Password of your network on the script as well.
+
+* Routes
+
+- ~GET /led~: Just fetch status.
+- ~POST /led/on~: Turn LED on.
+- ~POST /led/off~: Turn LED off.
+- ~POST /led/toggle~: Toggle LED state.
+
+  All routes should return a single JSON in the format:
+
+  #+begin_src json
+{
+    "state": "ON"
+}
+  #+end_src
+
+where ~state~ can be one of ~ON~ or ~OFF~.
+
+* Code
+
+#+begin_src C++
+#include <WiFi.h>
+
+// Network info
+const char *ssid = "CHANGEME";
+const char *password = "CHANGEME";
+
+// Web server on port 80
+WiFiServer server(80);
+
+void setup() {
+  // Start builtin LED
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+
+  // Start serial monitor with 115200 baud
+  Serial.begin(115200);
+  Serial.println("");
+
+  // Connect to WiFi network
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
+  Serial.println("...");
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(500);
+    digitalWrite(LED_BUILTIN, LOW);
+  }
+
+  Serial.println("Connected!");
+  Serial.print("SSID: ");
+  Serial.print(WiFi.SSID());
+  Serial.print(", IP address: ");
+  Serial.println(WiFi.localIP());
+
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  // Initialize web server
+  Serial.println("Initializing web server...");
+  server.begin();
+  Serial.println("Server started on port 80.");
+}
+
+void serve() {
+  // Listen for incoming clients
+  WiFiClient client = server.available();
+  if (!client) return;
+
+  String header;
+  char c = 0;
+
+  do {
+    do {
+      if(client.available()) {
+        c = client.read();
+        header += c;
+      } else c = 0;
+    } while(c != '\n');
+
+    if(client.available()) {
+      c = client.read();
+    }
+
+    if(c == '\r') c = 0;
+    
+  } while (c != '\n');
+
+  if((header.indexOf("GET /led") < 0) && (header.indexOf("POST /led") < 0)) {
+    // Unknown route
+    client.println("HTTP/1.1 404 Not Found");
+    client.println("Connection: close");
+    client.println();
+    client.stop();
+    return;
+  }
+
+  // Actual LED "CRUD"
+  if(header.indexOf("POST /led/on") >= 0) {
+    digitalWrite(LED_BUILTIN, HIGH);
+  } else if(header.indexOf("POST /led/off") >= 0) {
+    digitalWrite(LED_BUILTIN, LOW);
+  } else if(header.indexOf("POST /led/toggle") >= 0) {
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+  }
+
+  // We'll ignore the headers, bleh
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: application/json");
+  client.println("Connection: close");
+  client.println();
+
+  String answer;
+  answer += "{\"state\": \"";
+  answer += digitalRead(LED_BUILTIN) ? "ON": "OFF";
+  answer += "\"}";
+
+  Serial.println(answer);
+  client.println(answer);
+
+  client.stop();
+}
+
+unsigned long lastDebrief = millis();
+
+void loop() {
+  if((millis() - lastDebrief) > 2000) {
+    Serial.print("Assigned IP: ");
+    Serial.println(WiFi.localIP());
+    lastDebrief = millis();
+  }
+  serve();
+}
+#+end_src

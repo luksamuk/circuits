@@ -6,6 +6,15 @@ This circuit works by fetching input from a pushbutton which toggles a LED
 on each press. Furthermore, it also exposes an HTTP/1.1 service that outputs
 the state of the LED and its temperature on any request.
 
+* Requirements
+
+- A small breadboard (400 pins is fine)
+- Raspberry Pi Pico W
+- 4 male-male jumpers (any color, but try relating colors to usage)
+- 1 pushbutton
+- 1 small LED bulb of any color
+- 1 220Ω (220R) resistor
+
 * Breadboard
 
 #+attr_html: :height 400
