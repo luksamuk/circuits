@@ -10,6 +10,7 @@ Most of these were made for the Raspberry Pi Pico W.
 - RPi Pico W  / MicroPython: [[./toggle_led/README.org][Toggle external  LED with button +  web service for
   monitoring]]
 - RPi Pico W / Arduino: [[./toggle_led_ino/README.org][Built-in LED controller throught web service]]
+- RPi Pico W / MicroPython: [[./rfid/README.org][RFID Card Reader]]
   
 * Useful information
 

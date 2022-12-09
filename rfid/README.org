@@ -1,0 +1,88 @@
+#+title: RFID card reader
+#+startup: inlineimages
+
+This app connects to an RFID card reader and attempts to read information
+from a card, keychain or even NFC (if your phone supports it).
+
+Use this script on Thonny.
+
+* Requirements
+
+- A breadboard (I'm using one with 830 pins for proper spacing)
+- Raspberry Pi Pico W
+- 9 male-male jumpers (any color, but try relating colors to usage)
+- An RFID MFRC522 reader module (I'm using a Mifare one)
+
+* Useful tips
+
+** More resources
+
+- [[https://fritzing.org/projects/mfrc522][MFRC522 part for Fritzing]]
+- [[https://github.com/danjperron/micropython-mfrc522][Original link for the ~mfrc522.py~ library]]
+- [[https://microcontrollerslab.com/raspberry-pi-pico-rfid-rc522-micropython/][Tutorial I followed to make this]]
+
+The  MFRC  library file  is  also  distributed  on  this repository  for  backup
+purposes.
+
+** Installing the MFRC522 library
+
+You'll also need  to use Thonny to  both install MicroPython on your  RPi Pico W
+and copy  the ~mfrc522.py~  file to  its ~/lib~  path. Just  open the  file with
+Thonny and select Save As, then select the "Raspberry Pi" option and navigate to
+~/lib~.
+
+** Discovering card/keychain UID
+
+Simply  run the  application  once with  any  UID code  on  the dictionary,  and
+uncomment  the card  id line  to discover.  These must  be integer  numbers, you
+should be able to copypaste them.
+
+* Breadboard
+
+#+attr_html: :height 400
+#+attr_org: :width 400
+[[./rfid_bb.png]]
+
+* Code
+
+#+begin_src python
+from mfrc522 import MFRC522
+from time import sleep, ticks_ms
+from picozero import pico_led
+
+reader = MFRC522(spi_id = 0, sck = 2, miso = 4, mosi = 3, cs = 1, rst = 0)
+
+print("Bring the TAG near the sensor...")
+print("")
+
+
+authorized = {
+    # CARD_UID_HERE: "Card",
+    # KEYCHAIN_UID_HERE: "Keychain"
+}
+
+pico_led.off()
+threshold = 0
+
+while True:
+    reader.init()
+    (stat, tag_type) = reader.request(reader.REQIDL)
+    if stat == reader.OK:
+        (stat, uid) = reader.SelectTagSN()
+        card = int.from_bytes(bytes(uid), "little", False)
+        #print("Card ID: " + str(card))
+        if card in authorized:
+            print("Access Granted: " + str(authorized[card]))
+            threshold = ticks_ms()
+        else:
+            print("UNAUTHORIZED")
+            threshold = 0
+            
+    # Reset counter
+    if ticks_ms() - threshold > 2000:
+        pico_led.off()
+    else:
+        pico_led.on()
+    sleep(0.5)
+#+end_src
+
