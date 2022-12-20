@@ -11,6 +11,7 @@ Most of these were made for the Raspberry Pi Pico W.
   monitoring]]
 - RPi Pico W / Arduino: [[./toggle_led_ino/README.org][Built-in LED controller throught web service]]
 - RPi Pico W / MicroPython: [[./rfid/README.org][RFID Card Reader]]
+- RPi Pico W / MicroPython: [[./neopixel_blink/README.org][NeoPixel (WS2812) Blinking RGB LEDs]]
   
 * Useful information
 

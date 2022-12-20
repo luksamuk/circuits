@@ -77,7 +77,7 @@ while True:
         else:
             print("UNAUTHORIZED")
             threshold = 0
-            
+
     # Reset counter
     if ticks_ms() - threshold > 2000:
         pico_led.off()

@@ -1,0 +1,117 @@
+#+title: NeoPixel (WS2812) Blinking RGB LEDs
+#+startup: inlineimages
+
+This  app connects  to a  WS2812  addressable RGB  LED  strip and  blinks it  in
+multiple cycling colors.
+
+The operation runs  on RPi Pico W's  other thread so that  the interpreter isn't
+locked. Furthermore, the blinking can be toggled. A nice project for Christmas.
+
+Use this script on Thonny.
+
+* Requirements
+
+- A breadboard (400 pins is enough)
+- Raspberry Pi Pico W
+- 3 male-male jumpers (I preferred red for  line, white for ground and green for
+  data; you may also  use female-male and connect it to the  other end, though I
+  didn't test it)
+- A [[https://www.filipeflop.com/produto/fita-de-led-rgb-ws2812-5050-1m/][WS2812 5050 RGB LED strip]] (I'm using a variant with 1m length and 30 LEDs)
+
+* Useful tips
+
+** More resources
+
+- [[https://forum.fritzing.org/t/ws2812-rgb-led-strip-matrix/6339][WS2812 RGB LED strip part for Fritzing]]
+- [[https://docs.micropython.org/en/latest/esp8266/tutorial/neopixel.html][MicroPython documentation for Controlling NeoPixels (ESP8266 but compatible)]]
+- [[https://docs.micropython.org/en/latest/rp2/quickref.html#neopixel-and-apa106-driver][MicroPython RP2 NeoPixel documentation]]
+  
+** About the LED strip
+
+Notice  that while  the  Raspberry Pi  Pico  W operates  under  3.3V, the  strip
+operates under 5V. Therefore we use the VBUS pin instead of 3V3 to feed power to
+the strip;  VBUS redirects power  directly from USB cable,  which is 5V,  to the
+strip.
+
+Furthermore, most  resources show how to  handle this kind of  LED strip through
+the Adafruit  NeoPixel library for  CircuitPython, but this is  emulated through
+MicroPython without any external dependencies (see docs linked above).
+
+Finally, this script takes full advantage of the  two cores of RPi Pico W, so if
+you want to adapt  this script for other boards that  run MicroPython, take that
+into consideration.
+
+* Breadboard
+
+#+attr_html: :height 400
+#+attr_org: :width 400
+[[./neopixel_blink_bb.png]]
+
+* Code
+
+Adjust the variable ~num_leds~ to your needs.
+
+#+begin_src python
+from machine import Pin
+from neopixel import NeoPixel
+from time import sleep
+from picozero import pico_led
+from _thread import start_new_thread
+
+pico_led.on()
+pin = Pin(28)
+
+num_leds = 12
+np = NeoPixel(pin, num_leds)
+
+blinking = True
+
+pixels = [
+    (64,  30,  10),
+    (0,    0,   0),
+    (30,  64,  10),
+    (0,    0,   0),
+    (30,  10,  64),
+    (0,    0,   0),
+    (128, 10,  30),
+    (0,    0,   0),
+    (10, 128,  30),
+    (0,    0,   0),
+    (10,  30, 128),
+    (0,    0,   0),
+    (255, 30,  30),
+    (0,    0,   0),
+    (30, 255,  30),
+    (0,    0,   0),
+    (30,  30, 255),
+    (0,    0,   0)
+]
+
+def blink_lights():
+    global blinking
+    global np
+    global num_leds
+    
+    i = 0
+    while True:
+        sleep(0.1)  
+        if blinking:
+            i = (i + 1) % len(pixels)
+            for j in range(num_leds):
+                np[j] = pixels[(i + j) % len(pixels)]
+            np.write()
+
+def toggle():
+    global blinking
+    global np
+    
+    blinking = not blinking
+    if not blinking:
+        for i in range(num_leds):
+            np[i] = (0, 0, 0)
+        np.write()
+        
+# Run on non-interpreter thread
+start_new_thread(blink_lights, ())
+#+end_src
+
