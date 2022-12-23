@@ -1,6 +1,8 @@
 #+title: NeoPixel (WS2812) Blinking RGB LEDs + Button and Web Service
 #+startup: inlineimages
 
+[[./neopixel2.gif]]
+
 This app is  similar to NeoPixel (WS2812) Blinking RGB  LEDs, with the following
 caveats:
 
