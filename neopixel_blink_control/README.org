@@ -1,0 +1,314 @@
+#+title: NeoPixel (WS2812) Blinking RGB LEDs + Button and Web Service
+#+startup: inlineimages
+
+This app is  similar to NeoPixel (WS2812) Blinking RGB  LEDs, with the following
+caveats:
+
+1. It connects to WiFi and exposes a REST web service to control the LEDs;
+2. It  implements a push  button functionality for  toggling the LEDs  on/off on
+   GPIO 3;
+3. It does not create a parallel  thread, since the web service uses polling for
+   managing requests. Instead, it locks up the REPL thread.
+4. *It performs different LED animations.* I did this by request of a friend.
+
+* Requirements
+
+- A breadboard (400 pins is enough)
+- Raspberry Pi Pico W
+- 5 male-male jumpers (Red for  line, white for ground, green for
+  NeoPixel data; also a purple and orange one for 3.3V push button line and push
+  button board feedback respectively)
+- A [[https://www.filipeflop.com/produto/fita-de-led-rgb-ws2812-5050-1m/][WS2812 5050 RGB LED strip]] (I'm using a variant with 1m length and 30 LEDs)
+- One push button
+
+* Useful tips
+
+Make sure you check the other example (linked above!) for more information.
+
+The routes are:
+
+- ~GET /led~: Get LEDs and program status.
+- ~POST /led/on~: Turn LEDs on.
+- ~POST /led/off~: Turn LEDs off.
+- ~POST /led/toggle~: Toggle LEDs on/off.
+- ~POST /led/change~: Switch between LEDs programming.
+
+Pushing the button has the same effect of calling ~POST /led/toggle~.
+
+All  routes   should  return  a   JSON  containing  properties   ~blinking~  and
+~program~, which state whether the LEDs  are on and an integer number describing
+which blinking program is being used currently.
+
+* Breadboard
+
+#+attr_html: :height 400
+#+attr_org: :width 400
+[[./neopixel_blink_control_bb.png]]
+
+* Code
+
+#+begin_src python
+from machine import Pin
+from neopixel import NeoPixel
+from time import sleep, ticks_ms
+from picozero import pico_led
+import network
+import socket
+import select
+
+# Definitions for pins
+pin = Pin(28)
+button = Pin(3, Pin.IN, Pin.PULL_DOWN)
+
+# Definitions for NeoPixel LEDs
+np = NeoPixel(pin, 30)
+programming = 0
+
+# Definitions for WiFi
+SSID   = 'YOUR_SSID'
+PASSWD = 'YOUR_PASSWORD'
+wlan   = network.WLAN(network.STA_IF)
+
+# Definitions for REST server
+rest_socket = None
+rest_poller = None
+
+# Global state
+blinking = True
+pressed_old = False
+pressed_current = False
+last_blink_ms = 0
+
+# All pixel colors which cycle around
+# the strip sequentially
+pixels_prog0 = [
+    (255, 255, 255),
+    (0, 0, 0),
+    (64,  30,  10),
+    (0,    0,   0),
+    (30,  64,  10),
+    (0,    0,   0),
+    (30,  10,  64),
+    (0,    0,   0),
+    (128, 10,  30),
+    (0,    0,   0),
+    (10, 128,  30),
+    (0,    0,   0),
+    (10,  30, 128),
+    (0,    0,   0),
+    (255, 30,  30),
+    (0,    0,   0),
+    (30, 255,  30),
+    (0,    0,   0),
+    (30,  30, 255),
+    (0,    0,   0),
+    (255, 0, 0),
+    (0,    0,   0),
+    (255, 165, 0),
+    (0,    0,   0),
+    (255, 255, 0),
+    (0,    0,   0),
+    (0, 128, 0),
+    (0,    0,   0),
+    (0, 0, 255),
+    (0,    0,   0),
+    (75, 0, 130),
+    (0,    0,   0),
+    (238, 130, 238),
+    (0,    0,   0)
+]
+
+# Routine for pressing the button
+def pressed():
+    global button
+    global pressed_old
+    global pressed_current
+    pressed_current = button.value()
+    state = False
+    if not (pressed_current == pressed_old):
+        if pressed_current:
+            state = True
+    pressed_old = pressed_current
+    return state
+
+# Shut lights off
+def lights_off():
+    global np
+    for i in range(np.n):
+        np[i] = (0, 0, 0)
+    np.write()
+
+# Routine for toggling state
+def toggle():
+    global blinking
+    blinking = not blinking
+    if not blinking:
+        lights_off()
+
+# Routine for changing the program
+def cycle_program():
+    global programming
+    programming = (programming + 1) % 2
+    lights_off()
+        
+# Connect to the given WiFi network
+def wlan_connect(ssid, password):
+    wlan.active(True)
+    print('Scanning for networks...')
+    wlan.scan()
+    print(f'Connecting to {ssid}...')
+    wlan.connect(ssid, password)
+    while not wlan.isconnected():
+        pico_led.toggle()
+        sleep(0.2)
+    ip = wlan.ifconfig()[0]
+    print(f'Connected. IP address: {ip}')
+    pico_led.on()
+    return ip
+
+# Create a REST socket. Returns a poller and the socket itself.
+def start_rest_socket(ip):
+    address = (ip, 80)
+    rest_socket = socket.socket()
+    rest_socket.bind(address)
+    rest_socket.listen(1)
+    poller = select.poll()
+    poller.register(rest_socket, select.POLLIN)
+    print(f'Socket listening to {address[0]}:{address[1]}.')
+    return (poller, rest_socket)
+
+# Functions for REST responses
+def respond_status(client):
+    global blinking
+    global programming
+    value = 'true' if blinking else 'false'
+    client.send('HTTP/1.1 200 OK\r\n')
+    client.send('Content-Type: application/json\r\n')
+    client.send('Connection: close\r\n')
+    client.send(f'\n\r{{"blinking": {value}, "program": {programming}}}\r\n')
+
+def respond_notfound(client):
+    client.send('HTTP/1.1 404 Not Found\r\n')
+    client.send('Connection: close\r\n')
+
+# Poll and respond to REST events
+def poll_rest_event():
+    global rest_poller
+    global blinking
+    global programming
+    res = rest_poller.poll(16)
+    if res:
+        client = res[0][0].accept()[0]
+        request = client.recv(1024).decode('utf-8')
+        # Get first line
+        request = request.partition('\r\n')[0]
+        print(request)
+        if request.startswith('POST /led/toggle '):
+            toggle()
+            respond_status(client)
+        elif request.startswith('POST /led/change '):
+            cycle_program()
+            respond_status(client)
+        elif request.startswith('POST /led/on '):
+            blinking = True
+            respond_status(client)
+        elif request.startswith('POST /led/off '):
+            blinking = False
+            lights_off()
+            respond_status(client)
+        elif request.startswith('GET /led '):
+            respond_status(client)
+        else:
+            respond_notfound(client)
+        client.close()
+
+# INDEX
+i = 0
+
+# Blinking LED programmings
+def programming0():
+    global i
+    global blinking
+    global np
+    global last_blink_ms
+    global pixels_prog0
+    
+    num_pixels = len(pixels_prog0)
+    current_time_ms = ticks_ms()
+    if (current_time_ms - last_blink_ms >= 100): # Blink every 100ms
+        if blinking:
+            i = (i + 1) % num_pixels
+            for j in range(np.n):
+                np[j] = pixels_prog0[(i + j) % num_pixels]
+            np.write()
+        last_blink_ms = current_time_ms
+
+
+# Back-and-forth trail of lights
+going_back = False
+current_color = 0
+def programming1():
+    global i
+    global blinking
+    global np
+    global last_blink_ms
+    global going_back
+    global pixels_prog0
+    global current_color
+    current_time_ms = ticks_ms()
+    if (current_time_ms - last_blink_ms >= 20): # Blink every 16ms
+        if blinking:
+            if ((not going_back) and (i == np.n - 1)) or (going_back and (i == 0)):
+                going_back = not going_back
+                current_color = (current_color + 2) % len(pixels_prog0)
+            if not going_back:
+                i = (i + 1) % np.n
+                j = (i - 1) % np.n
+            elif going_back:
+                i = (i - 1) % np.n
+                j = (i + 1) % np.n
+            #np[i] = (255, 255, 255)
+            np[i] = pixels_prog0[current_color]
+            np[j] = (0, 0, 0)
+            np.write()
+        last_blink_ms = current_time_ms
+
+# Blinking lights loop, should be spawned asynchronously
+def blink_lights_loop():
+    global programming
+    while True:
+        sleep(0.001) # 1ms
+        if programming == 0:
+            programming0()
+        elif programming == 1:
+            programming1()
+        else:
+            lights_off()
+        # Toggle LED if button was pressed
+        if pressed():
+            toggle()
+        # Execute REST events
+        poll_rest_event()
+
+if __name__ == "__main__":
+    try:
+        # Turn lights off if any
+        lights_off()
+    
+        # Light on onboard LED
+        pico_led.on()
+    
+        # Connect to WiFi
+        ip = wlan_connect(SSID, PASSWD)
+    
+        # Start REST server
+        rest_poller, rest_socket = start_rest_socket(ip)
+    
+        # Run on non-interpreter thread
+        print('Starting main loop')
+        blink_lights_loop()
+    except:
+        # On exceptions, restart RPi Pico W.
+        # This avoids errors such as Address in Use for sockets.
+        machine.reset()
+#+end_src
