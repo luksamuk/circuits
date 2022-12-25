@@ -7,8 +7,8 @@ from textual.widgets import Header, Footer, Static, Input, Button
 from textual.containers import Vertical, Container, Horizontal
 from rich.syntax import Syntax
 
+# Client for performing REST requests on Raspberry Pi Pico W
 class RESTClient():
-
     def __init__(self):
         self.API = 'http://192.168.3.21'
     
@@ -47,6 +47,7 @@ class RESTClient():
     def change(self):
         return self.perform('/led/change')
 
+# Actual interface for app
 class PicoledApp(App):
     BINDINGS = []
     CSS_PATH = 'picoled_app.css'
@@ -59,8 +60,9 @@ class PicoledApp(App):
                 Button("Get Status", id = "btn-status"),
                 Button("Turn On", id = "btn-on"),
                 Button("Turn Off", id = "btn-off"),
-                Button("Toggle", id = "btn-toggle"),
-                Button("Change Program", id = "btn-change"),
+                Button("On/Off", id = "btn-toggle"),
+                Button("Program", id = "btn-change"),
+                Button("Quit", id = "btn-quit"),
                 classes='buttons'),
             Vertical(
                 Static(id="response", expand=True),
@@ -85,6 +87,8 @@ class PicoledApp(App):
             response = client.toggle()
         elif event.button.id == "btn-change":
             response = client.change()
+        elif event.button.id == "btn-quit":
+            self.exit()
 
         syntax = Syntax(response, 'json', line_numbers=True)
         self.query_one('#response').update(syntax)
