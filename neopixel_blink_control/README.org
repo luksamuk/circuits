@@ -41,6 +41,15 @@ All  routes   should  return  a   JSON  containing  properties   ~blinking~  and
 ~program~, which state whether the LEDs  are on and an integer number describing
 which blinking program is being used currently.
 
+** Helper app
+
+There is a helper app on this  repository! (see ~tui_app/main.py~). It runs as a
+terminal UI (TUI), and  performs requests on your RPi Pico  that is running this
+project's  script.   You'll  need  to   install  the  given   requirements  (see
+~requirements.txt~) and then run it using Python 3.
+
+[[./picoled_app.png]]
+
 * Breadboard
 
 #+attr_html: :height 400
