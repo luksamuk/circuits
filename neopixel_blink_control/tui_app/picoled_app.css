@@ -1,11 +1,12 @@
 .buttons {
+    content-align: center middle;
     width: 30%;
 }
 
 .column {
-    width: 100%;
+    width: 1fr;
 }
 
 Button {
-    width: 25;
+    width: 1fr;
 }
