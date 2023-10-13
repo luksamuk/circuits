@@ -34,6 +34,8 @@ The routes are:
 - ~POST /led/off~: Turn LEDs off.
 - ~POST /led/toggle~: Toggle LEDs on/off.
 - ~POST /led/change~: Switch between LEDs programming.
+- ~POST /led/dim/<num>~: Set the dimming threshold to ~<num>~ (must be between 0
+  and 1).
 
 Pushing the button has the same effect of calling ~POST /led/toggle~.
 
@@ -89,6 +91,7 @@ blinking = True
 pressed_old = False
 pressed_current = False
 last_blink_ms = 0
+dim = 0.05
 
 # All pixel colors which cycle around
 # the strip sequentially
@@ -149,6 +152,15 @@ def lights_off():
         np[i] = (0, 0, 0)
     np.write()
 
+# Change lights dim
+def set_dim(dimstr):
+    global dim
+    print(f'set dim: {dimstr}')
+    try:
+        dim = float(dimstr)
+    except:
+        pass
+
 # Routine for toggling state
 def toggle():
     global blinking
@@ -159,7 +171,7 @@ def toggle():
 # Routine for changing the program
 def cycle_program():
     global programming
-    programming = (programming + 1) % 2
+    programming = (programming + 1) % 3                          
     lights_off()
         
 # Connect to the given WiFi network
@@ -196,7 +208,7 @@ def respond_status(client):
     client.send('HTTP/1.1 200 OK\r\n')
     client.send('Content-Type: application/json\r\n')
     client.send('Connection: close\r\n')
-    client.send(f'\n\r{{"blinking": {value}, "program": {programming}}}\r\n')
+    client.send(f'\n\r{{"blinking": {value}, "program": {programming}, "dim": {dim}}}\r\n')
 
 def respond_notfound(client):
     client.send('HTTP/1.1 404 Not Found\r\n')
@@ -227,6 +239,10 @@ def poll_rest_event():
             blinking = False
             lights_off()
             respond_status(client)
+        elif request.startswith('POST /led/dim/'):
+            trimright = str(request)[:-9]
+            set_dim(trimright[14:])
+            respond_status(client)
         elif request.startswith('GET /led '):
             respond_status(client)
         else:
@@ -236,6 +252,17 @@ def poll_rest_event():
 # INDEX
 i = 0
 
+# Constant white light programming
+def programming2():
+    global np
+    global blinking
+    global dim
+    if blinking:
+        px = (int)(dim * 255)
+        for i in range(np.n):
+            np[i] = (px, px, px)
+            np.write()
+
 # Blinking LED programmings
 def programming0():
     global i
@@ -243,6 +270,7 @@ def programming0():
     global np
     global last_blink_ms
     global pixels_prog0
+    global dim
     
     num_pixels = len(pixels_prog0)
     current_time_ms = ticks_ms()
@@ -250,7 +278,8 @@ def programming0():
         if blinking:
             i = (i + 1) % num_pixels
             for j in range(np.n):
-                np[j] = pixels_prog0[(i + j) % num_pixels]
+                color = pixels_prog0[(i + j) % num_pixels]
+                np[j] = ((int)(dim * color[0]), (int)(dim * color[1]), (int)(dim * color[2]))
             np.write()
         last_blink_ms = current_time_ms
 
@@ -266,6 +295,7 @@ def programming1():
     global going_back
     global pixels_prog0
     global current_color
+    global dim
     current_time_ms = ticks_ms()
     if (current_time_ms - last_blink_ms >= 20): # Blink every 16ms
         if blinking:
@@ -279,7 +309,8 @@ def programming1():
                 i = (i - 1) % np.n
                 j = (i + 1) % np.n
             #np[i] = (255, 255, 255)
-            np[i] = pixels_prog0[current_color]
+            color = pixels_prog0[current_color]
+            np[i] = ((int)(dim * color[0]), (int)(dim * color[1]), (int)(dim * color[2]))
             np[j] = (0, 0, 0)
             np.write()
         last_blink_ms = current_time_ms
@@ -293,6 +324,8 @@ def blink_lights_loop():
             programming0()
         elif programming == 1:
             programming1()
+        elif programming == 2:
+            programming2()
         else:
             lights_off()
         # Toggle LED if button was pressed
